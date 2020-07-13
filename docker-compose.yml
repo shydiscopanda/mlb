@@ -1,0 +1,45 @@
+version: '3'
+
+services:
+  db:
+    restart: always
+    image: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+  migration:
+    image: mlb
+    command: sh -c "python manage.py makemigrations && python manage.py migrate"
+    volumes:
+      - .:/code
+    depends_on:
+      - db
+      - web
+  web:
+    build: .
+    image: mlb
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/code
+    ports:
+      - "8000:8000"
+    links:
+      - redis
+    depends_on:
+      - db
+  redis:
+    restart: always
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+  workers:
+    image: mlb
+    command: sh -c "python manage.py rqworker default fast"
+    volumes:
+      - .:/code
+    depends_on:
+      - redis
+      - web
